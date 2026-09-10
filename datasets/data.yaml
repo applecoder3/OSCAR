@@ -1,0 +1,10 @@
+# Dataset root on your the local machine (Change the path to the root location of your dataset)
+path: C:/Users/ejcru/OneDrive/Documents/ChatGPT/Rover/datasets
+
+# Image folders, relative to the dataset root
+train: train/images
+val: valid/images
+
+# Class IDs must match the numners in your local files
+names:
+  0: outlet
