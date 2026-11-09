@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.10)
+project(rover_sim)
+find_package(ament_cmake REQUIRED)
+install(DIRECTORY config launch rviz DESTINATION share/${PROJECT_NAME})
+install(PROGRAMS scripts/command_guard.py scripts/keyboard.py DESTINATION lib/${PROJECT_NAME})
+ament_package()

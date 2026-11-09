@@ -1,0 +1,105 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="oscar">
+  <xacro:arg name="dimensions_file" default="$(find rover_description)/config/dimensions.yaml"/>
+  <xacro:property name="d" value="${xacro.load_yaml('$(arg dimensions_file)')}"/>
+  <material name="dark"><color rgba="0.08 0.09 0.12 1"/></material>
+  <material name="silver"><color rgba="0.65 0.68 0.72 1"/></material>
+  <material name="blue"><color rgba="0.10 0.35 0.85 1"/></material>
+  <material name="green"><color rgba="0.10 0.60 0.25 1"/></material>
+  <material name="red"><color rgba="0.90 0.15 0.10 1"/></material>
+
+  <xacro:macro name="box_inertia" params="mass lx ly lz">
+    <inertial>
+      <mass value="${mass}"/>
+      <inertia ixx="${mass*(ly*ly+lz*lz)/12}" ixy="0" ixz="0"
+               iyy="${mass*(lx*lx+lz*lz)/12}" iyz="0" izz="${mass*(lx*lx+ly*ly)/12}"/>
+    </inertial>
+  </xacro:macro>
+  <xacro:macro name="box_body" params="lx ly lz mass color">
+    <visual><geometry><box size="${lx} ${ly} ${lz}"/></geometry><material name="${color}"/></visual>
+    <collision><geometry><box size="${lx} ${ly} ${lz}"/></geometry></collision>
+    <xacro:box_inertia mass="${mass}" lx="${lx}" ly="${ly}" lz="${lz}"/>
+  </xacro:macro>
+  <xacro:macro name="fixed_box" params="name lx ly lz mass color x y z pitch:=0">
+    <link name="${name}"><xacro:box_body lx="${lx}" ly="${ly}" lz="${lz}" mass="${mass}" color="${color}"/></link>
+    <joint name="${name}_mount" type="fixed">
+      <parent link="base_link"/><child link="${name}"/>
+      <origin xyz="${x} ${y} ${z-d.bottom_height}" rpy="0 ${pitch} 0"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- Front is +X, left is +Y, up is +Z. Ground-plane root has no mass. -->
+  <link name="base_footprint"/>
+  <link name="base_link">
+    <xacro:box_body lx="${d.plate_length}" ly="${d.plate_width}" lz="${d.plate_thickness}" mass="${d.bottom_mass}" color="dark"/>
+  </link>
+  <joint name="base_height" type="fixed">
+    <parent link="base_footprint"/><child link="base_link"/><origin xyz="0 0 ${d.bottom_height}"/>
+  </joint>
+  <xacro:fixed_box name="middle_plate" lx="${d.plate_length}" ly="${d.plate_width}" lz="${d.plate_thickness}" mass="${d.upper_plate_mass}" color="blue" x="0" y="0" z="${d.middle_height}"/>
+  <xacro:fixed_box name="top_plate" lx="${d.plate_length}" ly="${d.plate_width}" lz="${d.plate_thickness}" mass="${d.upper_plate_mass}" color="dark" x="0" y="0" z="${d.top_height}"/>
+
+  <xacro:macro name="post" params="name sx sy">
+    <xacro:fixed_box name="${name}" lx="${d.post_size}" ly="${d.post_size}" lz="${d.top_height-d.bottom_height}" mass="${d.post_mass}" color="silver" x="${sx*(d.plate_length/2-0.03)}" y="${sy*(d.plate_width/2-0.03)}" z="${(d.top_height+d.bottom_height)/2}"/>
+  </xacro:macro>
+  <xacro:post name="front_left_post" sx="1" sy="1"/>
+  <xacro:post name="front_right_post" sx="1" sy="-1"/>
+  <xacro:post name="rear_left_post" sx="-1" sy="1"/>
+  <xacro:post name="rear_right_post" sx="-1" sy="-1"/>
+
+  <!-- Cylinders are layout placeholders, NOT simulated mecanum roller contacts. -->
+  <xacro:macro name="wheel" params="name sx sy">
+    <link name="${name}_wheel">
+      <visual>
+        <origin rpy="${pi/2} 0 0"/>
+        <geometry><cylinder radius="${d.wheel_radius}" length="${d.wheel_width}"/></geometry>
+        <material name="dark"/>
+      </visual>
+      <!-- Coloured offset spoke makes joint rotation visible in RViz. -->
+      <visual>
+        <origin xyz="${d.wheel_radius/3} ${sy*(d.wheel_width/2+0.001)} 0"/>
+        <geometry><box size="${d.wheel_radius} 0.003 0.008"/></geometry>
+        <material name="silver"/>
+      </visual>
+      <collision><origin rpy="${pi/2} 0 0"/><geometry><cylinder radius="${d.wheel_radius}" length="${d.wheel_width}"/></geometry></collision>
+      <inertial>
+        <mass value="${d.wheel_mass}"/>
+        <inertia ixx="${d.wheel_mass*(3*d.wheel_radius**2+d.wheel_width**2)/12}" ixy="0" ixz="0"
+                 iyy="${d.wheel_mass*d.wheel_radius**2/2}" iyz="0"
+                 izz="${d.wheel_mass*(3*d.wheel_radius**2+d.wheel_width**2)/12}"/>
+      </inertial>
+    </link>
+    <joint name="${name}_wheel_joint" type="continuous">
+      <parent link="base_link"/><child link="${name}_wheel"/>
+      <origin xyz="${sx*d.wheelbase/2} ${sy*d.track/2} ${d.wheel_radius-d.bottom_height}"/>
+      <axis xyz="0 1 0"/>
+      <limit effort="2.0" velocity="20.0"/>
+      <dynamics damping="0.01" friction="0.0"/>
+    </joint>
+  </xacro:macro>
+  <xacro:wheel name="front_left" sx="1" sy="1"/>
+  <xacro:wheel name="front_right" sx="1" sy="-1"/>
+  <xacro:wheel name="rear_left" sx="-1" sy="1"/>
+  <xacro:wheel name="rear_right" sx="-1" sy="-1"/>
+
+  <!-- Pi and sensors are approximate bodies; sensor frames do not publish data yet. -->
+  <xacro:fixed_box name="pi_body" lx="0.085" ly="0.056" lz="0.015" mass="0.05" color="green" x="0" y="0" z="${d.middle_height+d.plate_thickness/2+0.0075}"/>
+  <xacro:fixed_box name="lidar_pedestal" lx="0.020" ly="0.020" lz="${d.lidar_height-d.lidar_body_height/2-d.top_height-d.plate_thickness/2}" mass="0.02" color="silver" x="${d.lidar_x}" y="${d.lidar_y}" z="${(d.top_height+d.plate_thickness/2+d.lidar_height-d.lidar_body_height/2)/2}"/>
+  <link name="lidar_link">
+    <visual><geometry><cylinder radius="${d.lidar_radius}" length="${d.lidar_body_height}"/></geometry><material name="red"/></visual>
+    <collision><geometry><cylinder radius="${d.lidar_radius}" length="${d.lidar_body_height}"/></geometry></collision>
+    <inertial>
+      <mass value="${d.lidar_mass}"/>
+      <inertia ixx="${d.lidar_mass*(3*d.lidar_radius**2+d.lidar_body_height**2)/12}" ixy="0" ixz="0" iyy="${d.lidar_mass*(3*d.lidar_radius**2+d.lidar_body_height**2)/12}" iyz="0" izz="${d.lidar_mass*d.lidar_radius**2/2}"/>
+    </inertial>
+  </link>
+  <joint name="lidar_mount" type="fixed"><parent link="base_link"/><child link="lidar_link"/><origin xyz="${d.lidar_x} ${d.lidar_y} ${d.lidar_height-d.bottom_height}"/></joint>
+  <xacro:fixed_box name="camera_link" lx="0.020" ly="0.035" lz="0.030" mass="${d.camera_mass}" color="blue" x="${d.camera_x}" y="0" z="${d.camera_height}" pitch="${d.camera_down_tilt}"/>
+  <link name="camera_optical_frame"/>
+  <joint name="camera_optical_joint" type="fixed">
+    <parent link="camera_link"/><child link="camera_optical_frame"/>
+    <origin xyz="0.010 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+  </joint>
+  <!-- Small red marker identifies the +X/front edge. -->
+  <xacro:fixed_box name="front_marker" lx="0.008" ly="0.080" lz="0.012" mass="0.001" color="red" x="${d.plate_length/2}" y="0" z="${d.bottom_height+0.010}"/>
+</robot>

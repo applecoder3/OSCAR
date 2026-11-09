@@ -1,1 +1,64 @@
+# Python environments and generated caches
+env/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.cache/
+*.egg-info/
+
+# Local settings and credentials (keep shareable examples)
 /Ultralytics/
+.env
+.env.*
+!.env.example
+!.env.template
+
+# Training images and dataset exports; keep labels and datasets/data.yaml
+/datasets/**/images/
+/datasets/originals/
+/datasets/imports/
+/datasets/**/*.cache
+/outletdata/
+
+# Model checkpoints / exports and generated training/prediction results
+*.pt
+*.pth
+*.onnx
+*.engine
+/weights/
+/runs/
+/results/
+
+# ROS/colcon generated workspaces and local runtime state
+build/
+install/
+log/
+package_backups/
+.ros/
+.rviz2/
+.gz/
+*.log
+
+# Raw sensor recordings and rosbag files
+lidar_tests/
+rover_test_data/
+rosbag2_*/
+stationary*.bin
+*.bag
+*.mcap
+*.db3
+*.db3-shm
+*.db3-wal
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Put selected report figures/metrics in docs/report/ to version them.
+# Do not ignore all PNG/JPG/YAML/JSON files: source assets and ROS configs matter.
