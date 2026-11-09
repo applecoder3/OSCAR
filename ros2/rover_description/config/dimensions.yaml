@@ -1,0 +1,27 @@
+# ALL values are placeholders, not measurements from the chassis photo.
+# SI units: metres, kilograms, radians. Plate heights refer to plate centres.
+plate_length: 0.350
+plate_width: 0.250
+plate_thickness: 0.004
+bottom_height: 0.100
+middle_height: 0.200
+top_height: 0.300
+bottom_mass: 1.0
+upper_plate_mass: 0.3
+wheel_radius: 0.050
+wheel_width: 0.040
+wheelbase: 0.250
+track: 0.300
+wheel_mass: 0.2
+post_size: 0.010
+post_mass: 0.05
+lidar_x: 0.0
+lidar_y: 0.0
+lidar_height: 0.350
+lidar_radius: 0.030
+lidar_body_height: 0.040
+lidar_mass: 0.1
+camera_x: 0.160
+camera_height: 0.325
+camera_down_tilt: 0.25
+camera_mass: 0.03
