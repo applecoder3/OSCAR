@@ -1,0 +1,205 @@
+selected RR (IN1 GP9, IN2 GP8, inverted), cmd = 0.00
+ARMED
+# sweep RR, slow decay, any key aborts
+cmd,speed_mm_s,rpm
+0.00,0.0,0.0
+0.05,19.0,4.5
+0.10,56.8,13.6
+0.15,94.4,22.5
+0.20,132.0,31.5
+0.25,170.1,40.6
+0.30,207.0,49.4
+0.35,241.8,57.7
+0.40,280.8,67.0
+0.45,319.3,76.2
+0.50,356.8,85.2
+0.55,396.3,94.6
+0.60,433.1,103.4
+0.65,471.1,112.5
+0.70,508.0,121.3
+0.75,547.5,130.7
+0.80,585.6,139.8
+0.85,624.5,149.1
+0.90,661.2,157.8
+0.95,699.1,166.9
+1.00,741.9,177.1
+# sweep done
+ARMED
+decay = FAST
+# sweep RR, fast decay, any key aborts
+cmd,speed_mm_s,rpm
+0.00,0.0,0.0
+0.05,0.0,0.0
+0.10,0.0,0.0
+0.15,0.0,0.0
+0.20,0.0,0.0
+0.25,0.0,0.0
+0.30,140.4,33.5
+0.35,195.9,46.8
+0.40,246.3,58.8
+0.45,300.2,71.7
+0.50,357.5,85.3
+0.55,417.6,99.7
+0.60,474.4,113.3
+0.65,529.1,126.3
+0.70,578.4,138.1
+0.75,624.2,149.0
+0.80,664.0,158.5
+0.85,696.0,166.2
+0.90,719.3,171.7
+0.95,736.6,175.8
+1.00,744.8,177.8
+# sweep done
+selected FL (IN1 GP15, IN2 GP14), cmd = 0.00
+ARMED
+FL cmd = 0.10 (fast)
+FL cmd = 0.20 (fast)
+FL cmd = 0.30 (fast)
+TIMEOUT: no input for 2000 ms. All stop, DISARMED
+selected FL (IN1 GP15, IN2 GP14), cmd = 0.00
+ARMED
+
+RUN:  g arm | 1-4 select motor | w/s +/-10% | W/S +/-2% | space stop
+      d slow/fast decay (now FAST) | p duty sweep (RL/RR) | x all stop + disarm
+      t -> TEST mode | ? help
+      diag: e encoders | z zero | v speed stream | a pack voltage | r A/B sampler
+TEST: 1-8 toggle one IN pin | 0 all low | r -> RUN mode
+Timeout: motors stop and disarm after 2000 ms with no key
+
+decay = SLOW
+FL cmd = 0.10 (slow)
+FL cmd = 0.20 (slow)
+FL cmd = 0.30 (slow)
+TIMEOUT: no input for 2000 ms. All stop, DISARMED
+selected FR (IN1 GP3, IN2 GP2, inverted), cmd = 0.00
+ARMED
+FR cmd = 0.10 (slow)
+FR cmd = 0.20 (slow)
+FR cmd = 0.30 (slow)
+TIMEOUT: no input for 2000 ms. All stop, DISARMED
+selected RR (IN1 GP9, IN2 GP8, inverted), cmd = 0.00
+ARMED
+RR cmd = 0.10 (slow)
+TIMEOUT: no input for 2000 ms. All stop, DISARMED
+selected RR (IN1 GP9, IN2 GP8, inverted), cmd = 0.00
+ARMED
+RR cmd = 0.10 (slow)
+RR cmd = 0.20 (slow)
+RR cmd = 0.30 (slow)
+TIMEOUT: no input for 2000 ms. All stop, DISARMED
+selected FL (IN1 GP15, IN2 GP14), cmd = 0.00
+ARMED
+decay = FAST
+FL cmd = 0.10 (fast)
+TIMEOUT: no input for 2000 ms. All stop, DISARMED
+RL: count=1  speed=+0.0 mm/s  A=0 B=1
+RR: count=298595  speed=+0.0 mm/s  A=0 B=1
+no motor selected -- press 1-4
+no motor selected -- press 1-4
+selected FL (IN1 GP15, IN2 GP14), cmd = 0.00
+ARMED
+FL cmd = 0.10 (fast)
+RL: count=1  speed=+0.0 mm/s  A=0 B=1
+RR: count=298595  speed=+0.0 mm/s  A=0 B=1
+FL cmd = 0.20 (fast)
+RL: count=1  speed=+0.0 mm/s  A=0 B=1
+RR: count=298595  speed=+0.0 mm/s  A=0 B=1
+FL cmd = 0.30 (fast)
+RL: count=1  speed=+0.0 mm/s  A=0 B=1
+RR: count=298595  speed=+0.0 mm/s  A=0 B=1
+FL cmd = 0.40 (fast)
+RL: count=1  speed=+0.0 mm/s  A=0 B=1
+RR: count=298595  speed=+0.0 mm/s  A=0 B=1
+FL cmd = 0.50 (fast)
+RL: count=1  speed=+0.0 mm/s  A=0 B=1
+RR: count=298595  speed=+0.0 mm/s  A=0 B=1
+FL cmd = 0.60 (fast)
+RL: count=1  speed=+0.0 mm/s  A=0 B=1
+RR: count=298595  speed=+0.0 mm/s  A=0 B=1
+TIMEOUT: no input for 2000 ms. All stop, DISARMED
+selected FR (IN1 GP3, IN2 GP2, inverted), cmd = 0.00
+ARMED
+FR cmd = 0.10 (fast)
+TIMEOUT: no input for 2000 ms. All stop, DISARMED
+selected FR (IN1 GP3, IN2 GP2, inverted), cmd = 0.00
+ARMED
+FR cmd = 0.10 (fast)
+RL: count=1  speed=+0.0 mm/s  A=0 B=1
+RR: count=298595  speed=+0.0 mm/s  A=0 B=1
+FR cmd = 0.20 (fast)
+RL: count=1  speed=+0.0 mm/s  A=0 B=1
+RR: count=298595  speed=+0.0 mm/s  A=0 B=1
+FR cmd = 0.30 (fast)
+RL: count=1  speed=+0.0 mm/s  A=0 B=1
+RR: count=298595  speed=+0.0 mm/s  A=0 B=1
+FR cmd = 0.40 (fast)
+RL: count=1  speed=+0.0 mm/s  A=0 B=1
+RR: count=298595  speed=+0.0 mm/s  A=0 B=1
+FR cmd = 0.50 (fast)
+RL: count=1  speed=+0.0 mm/s  A=0 B=1
+RR: count=298595  speed=+0.0 mm/s  A=0 B=1
+FR cmd = 0.60 (fast)
+RL: count=1  speed=+0.0 mm/s  A=0 B=1
+RR: count=298595  speed=+0.0 mm/s  A=0 B=1
+RL: count=1  speed=+0.0 mm/s  A=0 B=1
+RR: count=298595  speed=+0.0 mm/s  A=0 B=1
+RL: count=1  speed=+0.0 mm/s  A=0 B=1
+RR: count=298595  speed=+0.0 mm/s  A=0 B=1
+TIMEOUT: no input for 2000 ms. All stop, DISARMED
+selected RL (IN1 GP6, IN2 GP7), cmd = 0.00
+ARMED
+RL cmd = 0.10 (fast)
+RL cmd = 0.20 (fast)
+RL cmd = 0.30 (fast)
+RL cmd = 0.40 (fast)
+RL cmd = 0.50 (fast)
+RL cmd = 0.60 (fast)
+TIMEOUT: no input for 2000 ms. All stop, DISARMED
+selected RR (IN1 GP9, IN2 GP8, inverted), cmd = 0.00
+ARMED
+RR cmd = 0.10 (fast)
+RR cmd = 0.20 (fast)
+TIMEOUT: no input for 2000 ms. All stop, DISARMED
+selected RR (IN1 GP9, IN2 GP8, inverted), cmd = 0.00
+ARMED
+RR cmd = 0.10 (fast)
+RR cmd = 0.20 (fast)
+RR cmd = 0.30 (fast)
+RR cmd = 0.40 (fast)
+TIMEOUT: no input for 2000 ms. All stop, DISARMED
+selected RR (IN1 GP9, IN2 GP8, inverted), cmd = 0.00
+ARMED
+RR cmd = 0.10 (fast)
+TIMEOUT: no input for 2000 ms. All stop, DISARMED
+selected RR (IN1 GP9, IN2 GP8, inverted), cmd = 0.00
+ARMED
+RR cmd = 0.10 (fast)
+RR cmd = 0.20 (fast)
+RR cmd = 0.30 (fast)
+RR cmd = 0.40 (fast)
+TIMEOUT: no input for 2000 ms. All stop, DISARMED
+selected RR (IN1 GP9, IN2 GP8, inverted), cmd = 0.00
+ARMED
+RR cmd = 0.10 (fast)
+RR cmd = 0.20 (fast)
+RR cmd = 0.30 (fast)
+RR cmd = 0.40 (fast)
+TIMEOUT: no input for 2000 ms. All stop, DISARMED
+selected FL (IN1 GP15, IN2 GP14), cmd = 0.00
+ARMED
+decay = SLOW
+FL cmd = 0.10 (slow)
+TIMEOUT: no input for 2000 ms. All stop, DISARMED
+selected FR (IN1 GP3, IN2 GP2, inverted), cmd = 0.00
+ARMED
+FR cmd = 0.10 (slow)
+TIMEOUT: no input for 2000 ms. All stop, DISARMED
+selected RR (IN1 GP9, IN2 GP8, inverted), cmd = 0.00
+ARMED
+RR cmd = 0.10 (slow)
+TIMEOUT: no input for 2000 ms. All stop, DISARMED
+selected RR (IN1 GP9, IN2 GP8, inverted), cmd = 0.00
+DISARMED -- press g to arm
+ARMED
+RR cmd = 0.10 (slow)
+TIMEOUT: no input for 2000 ms. All stop, DISARMED
