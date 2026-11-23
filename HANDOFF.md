@@ -55,16 +55,15 @@ navigation: calibration, transforms, SLAM, Nav2.
 - Protocol and safety: ARM/VEL/STOP/DISARM/PING replies, 250 ms VEL timeout, rejection of
   over-limit/NaN/malformed VEL, keyboard vs Pi arming kept separate, slew limit, mixing signs.
 
+- **Floor test: good.** Forward and turn drove correctly on the floor at these speeds.
+  Encoder signs count the right way for forward, so `rear_odometry`'s default
+  `encoder_sign_rl/rr = 1` should be right.
+
 **Not verified**
-- Turn direction on the floor (wheels-up looked right). Strafe (`4`/`6`) wasn't checked; it
-  depends on the mecanum rollers being mounted in the standard X pattern. Your bridge forces
-  vy = 0, so strafe only matters from the keyboard for now.
-- Encoder signs under power: does `ENC` count up on both rear wheels when driving forward?
-  `rear_odometry` needs that. Its `encoder_sign_rl/rr` parameters fix it if not.
+- Strafe (`4`/`6`). Deliberately skipped for now; your bridge forces vy = 0 anyway.
 - The bridge with the scan/odom guards on, i.e. with the LiDAR and `rear_odometry` running.
-- `ROTATION_ARM_M = 0.20` m (your handoff's guess, matches `effective_track_width 0.40`). Measure it.
-- Floor driving with `oscar_autonomous`. At the 0.15 m/s cap a wheel gets 20% of full speed,
-  which may be too little to move the robot on carpet.
+- Calibration: `ROTATION_ARM_M = 0.20` m in firmware and `track_width_m = 0.40` in
+  `rear_odometry` are both guesses. Real speed vs commanded speed hasn't been measured.
 
 **Power cutoff:** each battery box has its own switch. Killing motor power means switching off every box.
 
@@ -135,9 +134,31 @@ disarms as soon as `/cmd_vel` goes stale. That also means re-arming after every 
 
 ## Next (suggested order)
 
-1. Bridge with wheels up (above): ROS -> UART -> Pico -> wheels. Check turn/strafe directions and encoder signs.
-2. Calibrate: spin in place to get the real rotation arm / effective track width; drive a measured distance.
-3. Measure LiDAR and camera transforms on the chassis.
-4. Teleop with SLAM running to build a map.
-5. Nav2 goals at low speed with a spotter and a hand on the battery switches.
-6. Outlet detection -> approach goal.
+Done: ROS -> bridge -> Pico -> wheels, wheels up and on the floor.
+
+1. **Full sensor chain with the guards on.** `OSCAR_HARDWARE_ENABLED=true` with
+   `start_oscar_hardware.sh` (LD19, bridge, `rear_odometry`, SLAM, Nav2, YOLO). Check `/scan` at
+   ~10 Hz, `/odom` moving when you push the robot, and TF `odom -> base_link`. Then drive by
+   teleop on `/cmd_vel` with the guards on. You'll need a machine with RViz on the same network
+   and the same `ROS_DOMAIN_ID` to see any of this.
+2. **Calibrate odometry** (needs only teleop and a tape measure):
+   - Drive 2 m straight and compare `/odom` x -> `wheel_diameter_m` / `counts_per_rev`.
+   - Spin in place 5 full turns and compare `/odom` yaw -> `track_width_m`. Then set firmware
+     `ROTATION_ARM_M = track_width_m / 2` so commanded turn rate matches real.
+   - Command 0.10 m/s for 10 s and measure the distance. If it's well off, tell Ethan:
+     `WHEEL_SPEED_FULL` (0.74 m/s) was measured with the wheels in the air.
+3. **Measure sensor transforms.** LiDAR and camera position/height/yaw relative to `base_link`.
+   Check LiDAR forward-zero: an object straight ahead should appear at angle 0 in RViz.
+4. **Map:** teleop around the room with SLAM running; save the map.
+5. **Nav2 goals** at low speed, with a spotter and a hand on the battery switches. Before this,
+   **match Nav2's limits to the robot**:
+   - In `nav2_rover.yaml` the MPPI controller has `vx_max 0.5`, `wz_max 1.9`, and the velocity
+     smoother has 0.5 m/s / 2.0 rad/s. The bridge and firmware cap at 0.15 m/s / 0.4 rad/s, and
+     the bridge clamps silently, so Nav2 would plan for a robot ~3x faster than it is.
+   - `prepare_nav2.py` sets 0.15 but with DWB parameter names, which MPPI doesn't read.
+   - The bridge disarms whenever `/cmd_vel` goes quiet (between goals), so expect to re-arm per goal.
+6. **Outlet detection -> approach goal.** Camera frame + YOLO on the Pi, then the approach node
+   with `enable_navigation_goals` on.
+
+Raising the 0.15 / 0.4 limits later means changing the firmware `MAX_*`, the bridge
+`max_linear_x` / `max_angular_z` and Nav2 together.
