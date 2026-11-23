@@ -86,6 +86,13 @@
 #define ROTATION_ARM_M 0.20f
 // cmd units per second when speeding up: 0 -> full in 0.5 s.
 #define ACCEL_PER_S 2.0f
+// Breakaway: the rear-right wheel needs cmd 0.10 in slow decay to start
+// (bench, wheels up, 2026-11-23; the other three weren't measured). Any wheel
+// cmd between CMD_DEADBAND and CMD_MIN is raised to CMD_MIN so every wheel
+// turns. Below CMD_DEADBAND it's zero, so float noise from ROS doesn't kick
+// a wheel up to CMD_MIN.
+#define CMD_MIN 0.10f
+#define CMD_DEADBAND 0.01f
 
 #define V_SANE_MIN 9.0f
 #define V_SANE_MAX 17.5f
@@ -108,10 +115,11 @@ typedef struct {
 } motor_t;
 
 static const motor_t MOTORS[] = {
-    {"FL", FL_IN1, FL_IN2, true},
-    {"FR", FR_IN1, FR_IN2, false},
-    {"RL", RL_IN1, RL_IN2, true}, // UNCONFIRMED
-    {"RR", RR_IN1, RR_IN2, false},
+    {"FL", FL_IN1, FL_IN2, false},
+    {"FR", FR_IN1, FR_IN2, true},
+    {"RL", RL_IN1, RL_IN2, false},
+    {"RR", RR_IN1, RR_IN2, true}, // UNCONFIRMED
+
 };
 #define N_MOTORS 4
 
@@ -174,6 +182,10 @@ static void motor_set(int i, float c) {
 #if OSCAR_ENABLE_MOTOR_OUTPUT
   const motor_t *m = &MOTORS[i];
   c = fmaxf(-1.0f, fminf(1.0f, c));
+  if (fabsf(c) < CMD_DEADBAND)
+    c = 0.0f;
+  else if (fabsf(c) < CMD_MIN)
+    c = copysignf(CMD_MIN, c);
   if (m->invert)
     c = -c;
   uint16_t level = (uint16_t)(fabsf(c) * duty_max * pwm_full + 0.5f);

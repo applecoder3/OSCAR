@@ -66,7 +66,9 @@ float diag_pack_v(void);
 
 // ---- Pin map: oscar_hw.h ------------------------------------------------
 // invert flags carried over from the Nov 8-9 runs (motor leads weren't
-// moved, only GPIOs). RL is a guess (left side, like FL). Re-confirm all
+// moved, only GPIOs). Each flag belongs to its pins, so when the left/right
+// labels were fixed (oscar_hw.h) the flags moved with the pins: the right
+// side is the inverted side now. RR (GP3/2) is a guess. Re-confirm all
 // four against the marked chassis front with '5' before trusting them.
 typedef struct {
   const char *name;
@@ -75,10 +77,11 @@ typedef struct {
 } motor_t;
 
 static const motor_t MOTORS[] = {
-    {"FL", FL_IN1, FL_IN2, true},
-    {"FR", FR_IN1, FR_IN2, false},
-    {"RL", RL_IN1, RL_IN2, true}, // UNCONFIRMED
-    {"RR", RR_IN1, RR_IN2, false},
+    {"FL", FL_IN1, FL_IN2, false},
+    {"FR", FR_IN1, FR_IN2, true},
+    {"RL", RL_IN1, RL_IN2, false},
+    {"RR", RR_IN1, RR_IN2, true}, // UNCONFIRMED
+
 };
 #define N_MOTORS 4
 #define N_IN_PINS (N_MOTORS * 2)

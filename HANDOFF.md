@@ -7,8 +7,8 @@ velocity firmware (`oscar_autonomous`) speaks the exact protocol your
 been driven by your bridge or by ROS yet**; that's the next step and it's yours.
 
 > The Pico currently has the bench tool (`test_motor_single`, `firmware.elf`)
-> flashed, **not** `oscar_autonomous`. Flash `oscar_autonomous` before running
-> the bridge (see below).
+> flashed, built **before** the left/right label fix, **not** `oscar_autonomous`.
+> Flash `oscar_autonomous` from this branch before running the bridge (see below).
 
 ## Branches
 
@@ -27,19 +27,19 @@ been driven by your bridge or by ROS yet**; that's the next step and it's yours.
 - Pi 5 UART to the Pico on `/dev/ttyAMA0`: console works.
 - `test_motor_single` (bench tool): all four wheels drive.
 - `oscar_autonomous`, motors-off build: banner, keys, arming and the 2 s key timeout (stage 1).
-- `oscar_autonomous`, motors-on build: three wheels drove from the keyboard, **the rear-right wheel
-  did not turn**. It then ran under `test_motor_single`.
-- **Rear labels don't match the wheels:** firmware motor `RL` (GP3/GP2) drives the *physical
-  rear-right* wheel. Not yet checked: whether `FL`/`FR` are also mirrored (a left/right viewpoint
-  mix-up) or only the rear pair is swapped in `oscar_hw.h`, and whether the encoders are swapped too.
-  Until that's fixed, mixing turn/strafe and `/odom` left/right are wrong. Check: key `1` should
-  turn the front-left wheel (left as seen from behind the robot). Press `e` while turning the
-  physical rear-left wheel by hand; the `RL` count should change.
-- **Rear-right breakaway is high:** it starts at cmd 0.40 in fast decay (bench tool). Slow-decay
-  breakaway for this wheel wasn't recorded. (`README.md`'s <= 0.05 was a different, pre-rewire
-  measurement.) `oscar_autonomous` uses slow decay and sends at most 0.20 at its 0.15 m/s cap.
-  If this wheel needs more than that, it can't start, which would explain the run above. Likely
-  fix: measure slow-decay breakaway per wheel and add a minimum-duty offset.
+- `oscar_autonomous`, motors-on build (before the fixes below): three wheels drove from the
+  keyboard, the rear-right wheel did not turn. It then ran under `test_motor_single`.
+- **Motor left/right labels were mirrored. Fixed in `oscar_hw.h` (2026-11-23):** on the bench,
+  GP7/6 turned the front-right wheel and GP3/2 the rear-right (left/right as seen from behind the
+  robot). They're now named FR and RR. GP9/8 = FL and GP15/14 = RL are **inferred, not checked**
+  (keys `1`/`3` were tested, `2`/`4` weren't). The invert flags moved with their pins, so the right
+  side is the inverted side now; RR's flag is still a guess. **Encoders were already correct**:
+  turning the rear-left wheel by hand changes the `RL` count. The pin map in the Nov 20 kit's
+  `README_FIRST.md` / `oscar_autonomous.c` (`pi5/snapshot`) is the old, mirrored one.
+- **Rear-right breakaway: cmd 0.10 in slow decay, 0.40 in fast** (bench tool, wheels up).
+  `oscar_autonomous` now raises any wheel command between 0.01 and 0.10 to 0.10, and treats
+  anything below 0.01 as zero. That explains and should fix the run above. **Not re-tested on
+  hardware since the fix.** The other three wheels' breakaway wasn't measured.
 
 **Verified off hardware only (laptop, Pico calls stubbed)**
 - Protocol and safety: ARM/VEL/STOP/DISARM/PING replies, 250 ms VEL timeout, rejection of
@@ -48,7 +48,8 @@ been driven by your bridge or by ROS yet**; that's the next step and it's yours.
 **Not verified**
 - Wheel directions for turn (`7`/`9`) and strafe (`4`/`6`). They depend on the mecanum rollers
   being mounted in the standard X pattern.
-- RL motor `invert` flag and both encoder signs after the Nov 16 rewire (noted in `README.md`).
+- Forward direction of each wheel after the label fix (press `5` in the bench tool, or `8` in
+  `oscar_autonomous`, and watch that all four roll forward), and both encoder signs.
 - Anything through `serial_bridge.py` / ROS.
 - `ROTATION_ARM_M = 0.20` m (your handoff's guess, matches `effective_track_width 0.40`). Measure it.
 - Floor driving with `oscar_autonomous`. At the 0.15 m/s cap a wheel gets 20% of full speed,

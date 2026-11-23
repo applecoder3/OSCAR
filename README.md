@@ -25,10 +25,10 @@ The Pi on the chassis talks to it over UART and flashes it through SWD.
 | Signal | GPIO | Notes |
 |---|---|---|
 | UART0 TX / RX (console to the Pi) | GP0 / GP1 | 115200 baud |
-| FL IN1 / IN2 | GP7 / GP6 | PWM slice 3 |
-| FR IN1 / IN2 | GP9 / GP8 | PWM slice 4 |
-| RL IN1 / IN2 | GP3 / GP2 | PWM slice 1 |
-| RR IN1 / IN2 | GP15 / GP14 | PWM slice 7 |
+| FL IN1 / IN2 | GP9 / GP8 | PWM slice 4 (inferred, see `oscar_hw.h`) |
+| FR IN1 / IN2 | GP7 / GP6 | PWM slice 3 (bench-checked 2026-11-23) |
+| RL IN1 / IN2 | GP15 / GP14 | PWM slice 7 (inferred) |
+| RR IN1 / IN2 | GP3 / GP2 | PWM slice 1 (bench-checked 2026-11-23) |
 | RL encoder B / A | GP12 / GP13 | PIO0 SM0 |
 | RR encoder B / A | GP10 / GP11 | PIO0 SM1 |
 | Pack voltage divider | GP28 (ADC2) | Measured ratio 12.08 / 2.12 ≈ 5.70 |

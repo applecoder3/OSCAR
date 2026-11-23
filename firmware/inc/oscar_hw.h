@@ -8,15 +8,18 @@
 // GP4/GP5 unused. GP5 reads ~2 ohm to GND on this Pico -- never drive it.
 
 // Motor IN pins. Every pair is (even, odd) so IN1/IN2 share one PWM slice:
-// RL 2/3 = slice 1, FL 6/7 = slice 3, FR 8/9 = slice 4, RR 14/15 = slice 7.
-#define FL_IN1 7
-#define FL_IN2 6
-#define FR_IN1 9
-#define FR_IN2 8
-#define RL_IN1 3
-#define RL_IN2 2
-#define RR_IN1 15
-#define RR_IN2 14
+// RR 2/3 = slice 1, FR 6/7 = slice 3, FL 8/9 = slice 4, RL 14/15 = slice 7.
+// Left/right were mirrored here until 2026-11-23: on the bench, GP7/6 turned
+// the front-right wheel and GP3/2 the rear-right (left/right as seen from
+// behind the robot). GP9/8 = FL and GP15/14 = RL are inferred, not checked.
+#define FL_IN1 9
+#define FL_IN2 8
+#define FR_IN1 7
+#define FR_IN2 6
+#define RL_IN1 15
+#define RL_IN2 14
+#define RR_IN1 3
+#define RR_IN2 2
 
 // Rear encoders. quadrature_encoder.pio reads two adjacent pins starting at
 // a base pin. On this wiring the lower pin is ENCB (C2), so the PIO's "A" is
