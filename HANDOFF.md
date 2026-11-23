@@ -1,14 +1,15 @@
 # OSCAR firmware handoff (Ethan -> nav/perception, 2026-11-23)
 
-**Short version:** the Pico firmware and the Pi 5 <-> Pico link are set up for
-your ROS stack. Flashing and the serial console work from the Pi 5. The
-velocity firmware (`oscar_autonomous`) speaks the exact protocol your
-`serial_bridge.py` expects. It was bench-tested from the keyboard. **It has not
-been driven by your bridge or by ROS yet**; that's the next step and it's yours.
+**Short version:** the interconnect is done. ROS `/cmd_vel` -> your
+`serial_bridge` -> Pi 5 `/dev/ttyAMA0` -> Pico (`oscar_autonomous`) -> four
+wheels was run end to end on 2026-11-23 (wheels up), along with the
+handshake, encoder telemetry, the stale-command disarm and the E-stop.
+`tools/bridge_check.sh` reruns all of it in about 30 s. What's left is
+navigation: calibration, transforms, SLAM, Nav2.
 
-> The Pico currently has the bench tool (`test_motor_single`, `firmware.elf`)
-> flashed, built **before** the left/right label fix, **not** `oscar_autonomous`.
-> Flash `oscar_autonomous` from this branch before running the bridge (see below).
+> The Pico currently has `oscar_autonomous`, **motors-on** build, from this
+> branch. It starts disarmed and only drives when armed from the keyboard (`g`)
+> or by your bridge (`/pico/arm`).
 
 ## Branches
 
@@ -27,6 +28,15 @@ been driven by your bridge or by ROS yet**; that's the next step and it's yours.
 - Pi 5 UART to the Pico on `/dev/ttyAMA0`: console works.
 - `test_motor_single` (bench tool): all four wheels drive.
 - `oscar_autonomous`, motors-off build: banner, keys, arming and the 2 s key timeout (stage 1).
+- `oscar_autonomous`, motors-on build, after the fixes below: `g` `8` drives all four wheels forward.
+- **Through your bridge** (`tools/bridge_check.sh`, `serial_bridge` in `oscar-ros-lidar`,
+  scan/odom guards off): every check PASS.
+  - Handshake (`firmware_ready=True`) and `ENC rl rr` telemetry on `/pico/telemetry_raw`.
+  - `/cmd_vel` vx=0.05: all four wheels drove forward.
+  - `/cmd_vel` wz=0.3: drove, and the wheels looked right for a left turn (left back, right
+    forward). That was judged wheels-up, so confirm on the floor.
+  - Stopping `/cmd_vel`: the bridge disarmed by itself. `/pico/estop` while driving: stopped
+    and latched.
 - `oscar_autonomous`, motors-on build (before the fixes below): three wheels drove from the
   keyboard, the rear-right wheel did not turn. It then ran under `test_motor_single`.
 - **Motor left/right labels were mirrored. Fixed in `oscar_hw.h` (2026-11-23):** on the bench,
@@ -46,11 +56,12 @@ been driven by your bridge or by ROS yet**; that's the next step and it's yours.
   over-limit/NaN/malformed VEL, keyboard vs Pi arming kept separate, slew limit, mixing signs.
 
 **Not verified**
-- Wheel directions for turn (`7`/`9`) and strafe (`4`/`6`). They depend on the mecanum rollers
-  being mounted in the standard X pattern.
-- Forward direction of each wheel after the label fix (press `5` in the bench tool, or `8` in
-  `oscar_autonomous`, and watch that all four roll forward), and both encoder signs.
-- Anything through `serial_bridge.py` / ROS.
+- Turn direction on the floor (wheels-up looked right). Strafe (`4`/`6`) wasn't checked; it
+  depends on the mecanum rollers being mounted in the standard X pattern. Your bridge forces
+  vy = 0, so strafe only matters from the keyboard for now.
+- Encoder signs under power: does `ENC` count up on both rear wheels when driving forward?
+  `rear_odometry` needs that. Its `encoder_sign_rl/rr` parameters fix it if not.
+- The bridge with the scan/odom guards on, i.e. with the LiDAR and `rear_odometry` running.
 - `ROTATION_ARM_M = 0.20` m (your handoff's guess, matches `effective_track_width 0.40`). Measure it.
 - Floor driving with `oscar_autonomous`. At the 0.15 m/s cap a wheel gets 20% of full speed,
   which may be too little to move the robot on carpet.
@@ -99,15 +110,18 @@ duty from `firmware/sweep.log`). The encoders are reported, not used for control
 
 Don't run `screen` and the bridge on `/dev/ttyAMA0` at the same time.
 
-Suggested first ROS test (wheels up, inside `oscar-ros-lidar`). Scan/odom guards are off for this test only:
+**Re-check the link anytime** (wheels up, `screen` closed, about 30 s, prints PASS/FAIL per step).
+On the Pi 5, with `tools/bridge_check.sh` copied to `~`:
 
 ```
-ros2 run oscar_preflight serial_bridge --ros-args -p enable_hardware:=true \
-  -p port:=/dev/ttyAMA0 -p enable_scan_guard:=false -p enable_odom_guard:=false
-ros2 topic echo /pico/status                      # expect firmware_ready=True
-# start publishing /cmd_vel first (bridge disarms as soon as /cmd_vel goes stale), then:
-ros2 topic pub --once /pico/arm std_msgs/msg/Bool '{data: true}'
+sudo docker start oscar-ros-lidar        # if it isn't running
+sudo docker exec -i oscar-ros-lidar bash < ~/bridge_check.sh
 ```
+
+It runs `serial_bridge` with `port:=/dev/ttyAMA0` in ROS domain 77, with the scan/odom guards
+off. It drives forward, then turns, then E-stops, and leaves the Pico disarmed. When you run the
+bridge for real: start publishing `/cmd_vel` *before* sending `/pico/arm`, because the bridge
+disarms as soon as `/cmd_vel` goes stale. That also means re-arming after every Nav2 goal.
 
 ## Pi 5 traps found
 
