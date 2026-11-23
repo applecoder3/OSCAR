@@ -11,3 +11,15 @@ target_link_libraries(firmware pico_stdlib hardware_pwm hardware_adc hardware_pi
 pico_enable_stdio_usb(firmware 0)
 pico_enable_stdio_uart(firmware 1)
 pico_add_extra_outputs(firmware)
+
+# Velocity-command firmware for the Pi 5 ROS stack. Motor PWM is compiled out
+# unless configured with -DOSCAR_MOTORS=ON; the boot banner says which.
+option(OSCAR_MOTORS "Enable motor PWM in oscar_autonomous" OFF)
+add_executable(oscar_autonomous src/diag.c src/oscar_autonomous.c)
+pico_generate_pio_header(oscar_autonomous ${CMAKE_CURRENT_LIST_DIR}/quadrature_encoder.pio)
+target_include_directories(oscar_autonomous PRIVATE ${CMAKE_CURRENT_LIST_DIR}/inc)
+target_compile_definitions(oscar_autonomous PRIVATE OSCAR_ENABLE_MOTOR_OUTPUT=$<BOOL:${OSCAR_MOTORS}>)
+target_link_libraries(oscar_autonomous pico_stdlib hardware_pwm hardware_adc hardware_pio)
+pico_enable_stdio_usb(oscar_autonomous 0)
+pico_enable_stdio_uart(oscar_autonomous 1)
+pico_add_extra_outputs(oscar_autonomous)
