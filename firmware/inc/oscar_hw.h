@@ -3,7 +3,8 @@
 // (DRV8871 boards soldered to the perfboard, no sockets).
 #pragma once
 
-// UART0 console to the Pi Zero 2 W: GP0 TX, GP1 RX.
+// UART0 console to the Pi: GP0 TX, GP1 RX. On the Pi 5 that is /dev/ttyAMA0
+// (GPIO14 TX -> GP1, GPIO15 RX <- GP0); /dev/serial0 is its debug connector.
 // GP4/GP5 unused. GP5 reads ~2 ohm to GND on this Pico -- never drive it.
 
 // Motor IN pins. Every pair is (even, odd) so IN1/IN2 share one PWM slice:

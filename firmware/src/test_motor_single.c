@@ -1,7 +1,7 @@
 // OSCAR pre-battery bench tool. One binary, two modes.
 //
 // Console is UART0 on GP0/GP1 at 115200, NOT USB. Read it on the Pi with
-//   screen /dev/serial0 115200
+//   screen /dev/ttyAMA0 115200     (Pi 5; /dev/serial0 there is the debug port)
 //
 // Starts DISARMED. Drive keys do nothing until g arms.
 // RUN mode (default): g arm, 1-4 pick one motor, 5 picks ALL four,
