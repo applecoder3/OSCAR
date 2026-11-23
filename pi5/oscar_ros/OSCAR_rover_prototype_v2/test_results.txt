@@ -1,0 +1,27 @@
+test_bridge_manual_arm (test_firmware_contract.Firmware.test_bridge_manual_arm) ... ok
+test_motor_output_default_disabled (test_firmware_contract.Firmware.test_motor_output_default_disabled) ... ok
+test_config_edit (test_nav2_generator.Params.test_config_edit) ... WROTE /tmp/tmpe6wrcjxm/b.yaml
+ok
+test_encoder_line (test_restricted_kinematics.TwoRearEncoders.test_encoder_line) ... ok
+test_one_rev (test_restricted_kinematics.TwoRearEncoders.test_one_rev) ... ok
+test_rotation_wheels (test_restricted_kinematics.TwoRearEncoders.test_rotation_wheels) ... ok
+test_straight_wheels (test_restricted_kinematics.TwoRearEncoders.test_straight_wheels) ... ok
+test_two_rear_sensors_cannot_separate_yaw_and_strafe (test_restricted_kinematics.TwoRearEncoders.test_two_rear_sensors_cannot_separate_yaw_and_strafe) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 1.377s
+
+OK
+test_bearing (test_kinematics.KinematicTests.test_bearing) ... ok
+test_forward (test_kinematics.KinematicTests.test_forward) ... ok
+test_parse (test_kinematics.KinematicTests.test_parse) ... ok
+test_scan (test_kinematics.KinematicTests.test_scan) ... ok
+test_standoff (test_kinematics.KinematicTests.test_standoff) ... ok
+test_strafe (test_kinematics.KinematicTests.test_strafe) ... ok
+test_tick (test_kinematics.KinematicTests.test_tick) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.000s
+
+OK
+PASS: Python static compile and pure-code tests. ROS runtime build still required.

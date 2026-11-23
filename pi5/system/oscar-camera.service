@@ -1,0 +1,13 @@
+[Unit]
+Description=OSCAR IMX708 Camera Capture
+After=local-fs.target
+
+[Service]
+Type=simple
+User=oscar
+ExecStart=/bin/bash -c 'while true; do if /usr/bin/rpicam-still -n -t 100 --width 640 --height 640 -o /home/oscar/oscar_ros/camera_tests/live_tmp.jpg >/dev/null 2>&1; then mv /home/oscar/oscar_ros/camera_tests/live_tmp.jpg /home/oscar/oscar_ros/camera_tests/live.jpg; else echo "Camera capture failed"; fi; sleep 1; done'
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

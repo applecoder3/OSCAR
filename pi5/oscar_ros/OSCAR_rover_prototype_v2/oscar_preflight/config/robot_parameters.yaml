@@ -1,0 +1,9 @@
+# OSCAR preliminary parameters. DO NOT use as measured chassis calibration.
+# From Ethan's 2026-11-16 oscar_hw.h:
+rear_encoder_counts_per_rev: 2464.0
+wheel_diameter_m: 0.080
+# TODO: obtain wheelbase and track width from assembled chassis.
+# TODO: validate motor direction and rear encoder signs on blocks.
+# TODO: camera optical frame, focal length/FOV, camera-LiDAR yaw, laser pose.
+# TODO: map->odom provider via SLAM/localizer and odom->base_link from true fusion.
+# 2 rear-wheel encoders cannot uniquely estimate all vx, vy, wz on mecanum chassis.

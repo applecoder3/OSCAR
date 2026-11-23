@@ -1,0 +1,16 @@
+[Unit]
+Description=OSCAR Rover ROS 2 Software Startup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=10
+ExecStartPre=/usr/bin/docker start oscar-ros-lidar
+ExecStart=/usr/bin/docker exec oscar-ros-lidar bash /workspace/OSCAR_rover_prototype_v2/scripts/start_oscar.sh
+ExecStop=/usr/bin/docker exec oscar-ros-lidar pkill -TERM -f '^bash /workspace/OSCAR_rover_prototype_v2/scripts/start_oscar.sh'
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target
