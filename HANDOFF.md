@@ -1,164 +1,199 @@
-# OSCAR firmware handoff (Ethan -> nav/perception, 2026-11-23)
+# OSCAR firmware handoff (Ethan, 2026-11-23)
 
-**Short version:** the interconnect is done. ROS `/cmd_vel` -> your
-`serial_bridge` -> Pi 5 `/dev/ttyAMA0` -> Pico (`oscar_autonomous`) -> four
-wheels was run end to end on 2026-11-23 (wheels up), along with the
-handshake, encoder telemetry, the stale-command disarm and the E-stop.
-`tools/bridge_check.sh` reruns all of it in about 30 s. What's left is
-navigation: calibration, transforms, SLAM, Nav2.
+## Status
 
-> The Pico currently has `oscar_autonomous`, **motors-on** build, from this
-> branch. It starts disarmed and only drives when armed from the keyboard (`g`)
-> or by your bridge (`/pico/arm`).
+**The Pi 5 <-> Pico link is done and tested.** ROS `/cmd_vel` -> `serial_bridge` -> Pi 5
+`/dev/ttyAMA0` -> Pico -> all four wheels works, on the bench and on the floor. The Pico is ready
+to take whatever the nav stack sends and drive the motors. What's left is navigation:
+calibration, sensor transforms, SLAM, Nav2, perception.
 
-## Branches
+The Pico is currently flashed with **`oscar_autonomous`, motors-on build** (from this branch). It
+starts disarmed and only moves when armed from the keyboard or by the bridge.
 
-| Branch | What | Base |
-|---|---|---|
-| `fw/velocity-cmd` | **Use this.** Bench tool + `oscar_autonomous` velocity firmware + Pi 5 flashing. This file. | `fw/bringup-tests` |
-| `fw/bringup-tests` | Bench tool only, as it was before the Pi 5 move. | |
-| `pi5/snapshot` | Unmodified copy of everything that was only on the Pi 5 (your Nov 20 kit, `rover_navigation`, LD19 driver, systemd units). Read `pi5/MANIFEST.md`. | `main` |
+Everything below is on branch **`fw/velocity-cmd`**.
 
-`main`, `asusbranch`, `proto` were not touched.
+## What's what
 
-## State
+| File | What it is |
+|---|---|
+| `firmware/src/test_motor_single.c` -> `build/firmware.elf` | Ethan's bench tool. Drive one motor at a time, duty sweeps, pin toggling. For wiring/motor debugging. |
+| `firmware/src/oscar_autonomous.c` -> `build-motor/oscar_autonomous.elf` | **The firmware to run.** Starts from the `oscar_autonomous.c` in the Nov 20 Pi kit (see `pi5/snapshot`), reworked to match the bench tool. Same keyboard style for testing, plus the Pi protocol your `serial_bridge.py` speaks. Mecanum mixing is on the Pico. |
+| `firmware/inc/oscar_hw.h` | Pin map, the single source of truth for both programs. Left/right motor labels fixed 2026-11-23. |
+| `firmware/flash.sh` | Flashes an `.elf` over SWD through the Black Magic Probe on the Pi 5. The only way to flash; see Power below. |
+| `tools/bridge_check.sh` | 30-second test of ROS on the Pi 5 -> Pico -> wheels. See Test 2. |
 
-**Verified on hardware (Pi 5, wheels up)**
-- Build on the laptop, flash over SWD from the Pi 5 (Black Magic Probe on `/dev/ttyACM0`), `compare-sections` matched.
-- Pi 5 UART to the Pico on `/dev/ttyAMA0`: console works.
-- `test_motor_single` (bench tool): all four wheels drive.
-- `oscar_autonomous`, motors-off build: banner, keys, arming and the 2 s key timeout (stage 1).
-- `oscar_autonomous`, motors-on build, after the fixes below: `g` `8` drives all four wheels forward.
-- **Through your bridge** (`tools/bridge_check.sh`, `serial_bridge` in `oscar-ros-lidar`,
-  scan/odom guards off): every check PASS.
-  - Handshake (`firmware_ready=True`) and `ENC rl rr` telemetry on `/pico/telemetry_raw`.
-  - `/cmd_vel` vx=0.05: all four wheels drove forward.
-  - `/cmd_vel` wz=0.3: drove, and the wheels looked right for a left turn (left back, right
-    forward). That was judged wheels-up, so confirm on the floor.
-  - Stopping `/cmd_vel`: the bridge disarmed by itself. `/pico/estop` while driving: stopped
-    and latched.
-- `oscar_autonomous`, motors-on build (before the fixes below): three wheels drove from the
-  keyboard, the rear-right wheel did not turn. It then ran under `test_motor_single`.
-- **Motor left/right labels were mirrored. Fixed in `oscar_hw.h` (2026-11-23):** on the bench,
-  GP7/6 turned the front-right wheel and GP3/2 the rear-right (left/right as seen from behind the
-  robot). They're now named FR and RR. GP9/8 = FL and GP15/14 = RL are **inferred, not checked**
-  (keys `1`/`3` were tested, `2`/`4` weren't). The invert flags moved with their pins, so the right
-  side is the inverted side now; RR's flag is still a guess. **Encoders were already correct**:
-  turning the rear-left wheel by hand changes the `RL` count. The pin map in the Nov 20 kit's
-  `README_FIRST.md` / `oscar_autonomous.c` (`pi5/snapshot`) is the old, mirrored one.
-- **Rear-right breakaway: cmd 0.10 in slow decay, 0.40 in fast** (bench tool, wheels up).
-  `oscar_autonomous` now raises any wheel command between 0.01 and 0.10 to 0.10, and treats
-  anything below 0.01 as zero. That explains and should fix the run above. **Not re-tested on
-  hardware since the fix.** The other three wheels' breakaway wasn't measured.
+Not the same thing: `oscar_velocity.uf2` in the Nov 20 kit was built from a `motor_velocity.c` that
+isn't on the Pi or in git. **Don't flash it.**
 
-**Verified off hardware only (laptop, Pico calls stubbed)**
-- Protocol and safety: ARM/VEL/STOP/DISARM/PING replies, 250 ms VEL timeout, rejection of
-  over-limit/NaN/malformed VEL, keyboard vs Pi arming kept separate, slew limit, mixing signs.
+A motors-off build (`build-nomotor`, without `-DOSCAR_MOTORS=ON`) also exists. It runs everything
+except the motor PWM, which helps when testing the UART on a desk. You don't need it day to day.
 
-- **Floor test: good.** Forward and turn drove correctly on the floor at these speeds.
-  Encoder signs count the right way for forward, so `rear_odometry`'s default
-  `encoder_sign_rl/rr = 1` should be right.
+## Power and safety rules
 
-**Not verified**
-- Strafe (`4`/`6`). Deliberately skipped for now; your bridge forces vy = 0 anyway.
-- The bridge with the scan/odom guards on, i.e. with the LiDAR and `rear_odometry` running.
-- Calibration: `ROTATION_ARM_M = 0.20` m in firmware and `track_width_m = 0.40` in
-  `rear_odometry` are both guesses. Real speed vs commanded speed hasn't been measured.
+- **Power off:** each battery box has a switch. Switching off either one powers the robot down.
+- **One power source only.** Everything runs from the on-chassis rail. **Never plug USB into the
+  Pico while the robot is powered.** That would put a second 5 V supply (the laptop) onto the
+  same rail, plus a ground path through the laptop. USB flashing is not used at all; flash with
+  `flash.sh`. The same goes for the Pi 5: don't add a USB-C supply while it's on the rail.
+  (Ethan's understanding; check the power wiring if in doubt.)
+- **Battery: don't run it low.** The pack is 4S Li-ion: 16.8 V full, 14.8 V nominal. Press `a` on
+  the console for pack voltage (calibrated over about 10-14 V). **Charge at about 14.0 V and stop by
+  13.2 V. Below about 12 V (3.0 V per cell) the cells can be damaged.** The firmware only reports
+  the voltage. It doesn't cut off, and the Pi bridge doesn't receive it. Under load it reads lower,
+  so check it while the robot is stopped.
+- **Motion safety in firmware:** boots disarmed. Keyboard arming stops and disarms after 2 s with
+  no key. Pi arming stops and disarms after 250 ms with no `VEL`. `x` always disarms and
+  `space` always stops.
+- First runs after any change: wheels off the ground, hand on a battery switch.
 
-**Power cutoff:** each battery box has its own switch. Killing motor power means switching off every box.
+## One-time setup (the machine you build on)
 
-## Flash and drive from the Pi 5
-
-Wiring: Pi pin 8 (GPIO14 TX) -> Pico GP1, Pi pin 10 (GPIO15 RX) <- Pico GP0, GND <-> GND.
-Black Magic Probe USB into the Pi 5.
-
-From a laptop with the Pico SDK (`PICO_SDK_PATH` set):
+Linux or WSL Ubuntu:
 
 ```
-cmake -S firmware -B firmware/build-motor -DOSCAR_MOTORS=ON   # omit the flag for a no-PWM build
-cmake --build firmware/build-motor --target oscar_autonomous
-cd firmware && ./flash.sh build-motor/oscar_autonomous.elf    # every section must say "matched"
+sudo apt install cmake gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential git python3
+git clone https://github.com/raspberrypi/pico-sdk ~/pico/pico-sdk
+cd ~/pico/pico-sdk && git submodule update --init
+echo 'export PICO_SDK_PATH=~/pico/pico-sdk' >> ~/.bashrc && source ~/.bashrc
+ssh-copy-id oscar@RaspberryPi5.local      # so flash.sh can log in without a password
 ```
 
-`flash.sh` defaults to `oscar@RaspberryPi5.local`; `PI=user@host ./flash.sh ...` overrides.
-The bench tool is target `firmware` (`./flash.sh build/firmware.elf`).
+Ethan builds with Pico SDK 2.x. On the first configure the SDK may download and build `picotool`,
+which needs internet.
 
-Console on the Pi: `screen /dev/ttyAMA0 115200` (quit: Ctrl-a k y). The banner says whether
-motor output is ENABLED in that build.
+## Build
+
+From the repo root. The first time, configure each build folder (`-S`/`-B`); after that only the
+`--build` lines are needed:
+
+```
+cmake -S firmware -B firmware/build-motor -DOSCAR_MOTORS=ON
+cmake --build firmware/build-motor --target oscar_autonomous     # -> build-motor/oscar_autonomous.elf
+
+cmake -S firmware -B firmware/build
+cmake --build firmware/build --target firmware                   # -> build/firmware.elf (bench tool)
+```
+
+`OSCAR_MOTORS` is remembered per build folder. That's why motors-on lives in its own folder.
+
+## Flash (`flash.sh`)
+
+The robot must be powered (the Pico gets power from the rail, not from the probe). The Black Magic
+Probe must be plugged into the Pi 5's USB.
+
+```
+cd firmware
+./flash.sh build-motor/oscar_autonomous.elf      # or build/firmware.elf for the bench tool
+```
+
+It copies the `.elf` to the Pi 5 and runs `gdb-multiarch` there against the probe
+(`/dev/ttyACM0`). **Every section must say `matched` at the end**; if not, it didn't flash.
+`PI=user@host ./flash.sh ...` targets a different Pi (the default is `oscar@RaspberryPi5.local`).
+The Pico reboots disarmed after flashing. Check the boot banner (below) to confirm what's running:
+it says `Motor output ENABLED` or `DISABLED` for that build.
+
+## Console: SSH + screen
+
+```
+ssh oscar@RaspberryPi5.local
+screen /dev/ttyAMA0 115200        # NOT /dev/serial0, which is the Pi 5 debug connector
+```
+
+- Quit screen: `Ctrl-a`, then `k`, then `y`.
+- **Only one program can use `/dev/ttyAMA0` at a time.** Close screen before running the bridge.
+- If SSH drops while screen is open, screen keeps running on the Pi and keeps the port. Fix with
+  `screen -ls`, then `screen -X -S <name> quit`, or `pkill screen`.
+- Tip: run things inside `tmux` (`tmux new -s oscar`). After a dropped connection,
+  `tmux attach -t oscar` gets you back. `Ctrl-b c` opens another window, `Ctrl-b n` switches.
+
+## Test 1: keyboard (what Ethan ran)
+
+In screen, with `oscar_autonomous` flashed. Keys act immediately; no Enter needed.
 
 | Key | Does |
 |---|---|
 | `g` / `x` | arm / all stop + disarm |
 | `space` or `5` | stop, stay armed |
-| `8`/`2`, `4`/`6`, `7`/`9` | step forward/back, strafe left/right, turn left/right |
-| `e z v a r ?` | encoders, zero, speed stream, pack voltage, A/B sampler, help |
+| `8` / `2` | forward / back (0.05 m/s per press, max 0.15) |
+| `7` / `9` | turn left / right (0.10 rad/s per press, max 0.40) |
+| `4` / `6` | strafe left / right (not checked yet) |
+| `e` `z` `a` | encoder counts, zero them, pack voltage |
+| `v` `r` `?` | speed stream, encoder pin sampler, help |
 
-Starts disarmed. If it's moving and gets no key for 2 s, it stops and disarms.
+Check: `g` `8`, and all four wheels roll forward. `space`, then `7`: left wheels back, right
+wheels forward. `e` while pushing forward: both rear counts go up. `x` when done.
 
-## Pi link (what your bridge talks to)
+The bench tool (`build/firmware.elf`) uses the same style but drives one motor at a time: `1`-`4`
+pick FL/FR/RL/RR, `5` all, `g` arm, `w`/`s` +/-10%, `W`/`S` +/-2%, `t` pin-test mode. `?`
+lists it all.
 
-UART0 115200, one ASCII line each, lines start with a capital letter:
+## Test 2: ROS -> Pico (`tools/bridge_check.sh`)
 
-- Pi -> Pico: `ARM`, `DISARM`, `STOP`, `PING`, `VEL vx vy wz` (m/s, m/s, rad/s; +x forward, +y left, +wz CCW)
-- Pico -> Pi: `HELLO OSCAR_V1` (500 ms), `ENC rl rr` (100 ms), `OK ...`, `ERR VEL|UNKNOWN|TIMEOUT`
+This tests the same path Nav2 will use: it runs your `serial_bridge` inside the
+`oscar-ros-lidar` container against the Pico. In order, it checks:
 
-Limits: |vx| <= 0.15, |vy| <= 0.15, |wz| <= 0.40. Outside them -> `ERR VEL` + disarm.
-Armed by `ARM` with no VEL for 250 ms -> stop + disarm. HELLO/ENC start after the first Pi
-line (your bridge's DISARM-until-ready does that). Wheel speed is open loop (0.74 m/s at full
-duty from `firmware/sweep.log`). The encoders are reported, not used for control.
+1. pyserial is present in the container;
+2. the bridge opens `/dev/ttyAMA0` and gets `HELLO OSCAR_V1` from the Pico (`firmware_ready=True`);
+3. `ENC rl rr` encoder telemetry arrives on `/pico/telemetry_raw`;
+4. it publishes `/cmd_vel` forward and arms via `/pico/arm`. **Watch the wheels: all forward.** It
+   stops publishing and checks that the bridge disarms on its own;
+5. the same for a left turn. **Watch: left back, right forward;**
+6. it arms, drives, and sends `/pico/estop`, which must stop and latch.
 
-Don't run `screen` and the bridge on `/dev/ttyAMA0` at the same time.
+It prints PASS/FAIL per step and leaves the Pico disarmed. It uses ROS domain 77, so it can't see
+or drive anything else that's running. The scan/odom guards are off, because this tests the link,
+not navigation.
 
-**Re-check the link anytime** (wheels up, `screen` closed, about 30 s, prints PASS/FAIL per step).
-On the Pi 5, with `tools/bridge_check.sh` copied to `~`:
+On the Pi 5, wheels up, screen closed:
 
 ```
-sudo docker start oscar-ros-lidar        # if it isn't running
+scp tools/bridge_check.sh oscar@RaspberryPi5.local:     # once, from the repo (already there now)
+sudo docker start oscar-ros-lidar                         # if it isn't running
 sudo docker exec -i oscar-ros-lidar bash < ~/bridge_check.sh
 ```
 
-It runs `serial_bridge` with `port:=/dev/ttyAMA0` in ROS domain 77, with the scan/odom guards
-off. It drives forward, then turns, then E-stops, and leaves the Pico disarmed. When you run the
-bridge for real: start publishing `/cmd_vel` *before* sending `/pico/arm`, because the bridge
-disarms as soon as `/cmd_vel` goes stale. That also means re-arming after every Nav2 goal.
+**2026-11-23 result: all PASS**, wheels up. Forward and turn were then also good on the floor.
 
-## Pi 5 traps found
+Using the bridge for real: start publishing `/cmd_vel` *before* sending `/pico/arm`. The bridge
+disarms as soon as `/cmd_vel` goes quiet, so expect to re-arm for each Nav2 goal.
 
-- `/dev/serial0` on the Pi 5 is the **debug connector** (`ttyAMA10`), not GPIO14/15.
-  `serial_bridge.py`'s default port, `README_FIRST.md` and `create_uart_container.sh` use
-  `serial0`. Use `/dev/ttyAMA0`. (`start_oscar_hardware.sh` already does.)
-- **Don't flash `oscar_velocity.uf2`** from the Nov 20 kit. It was built from
-  `motor_velocity.c`, whose source isn't on the Pi or in git. Use `oscar_autonomous` from this branch.
-- `oscar.service` is disabled and inactive (the kit says startup is automatic).
-- `config.txt` has the typo `dtparam=uart0=onwq`; harmless, `dtoverlay=uart0-pi5` does the work.
+## Pi protocol (reference)
 
-## Next (suggested order)
+UART0, 115200, one ASCII line per message. Pi lines start with a capital letter; anything else is
+treated as a keyboard key.
 
-Done: ROS -> bridge -> Pico -> wheels, wheels up and on the floor.
+- Pi -> Pico: `ARM`, `DISARM`, `STOP`, `PING`, `VEL vx vy wz` (m/s, m/s, rad/s; +x forward, +y left, +wz CCW)
+- Pico -> Pi: `HELLO OSCAR_V1` (500 ms), `ENC rl rr` (100 ms), `OK ...`, `ERR VEL|UNKNOWN|TIMEOUT`
+- Limits: |vx| <= 0.15, |vy| <= 0.15, |wz| <= 0.40. Outside them -> `ERR VEL` + disarm.
+- HELLO/ENC start after the first Pi line, so the keyboard console stays quiet.
+- Open loop: 0.74 m/s at full duty (measured wheels-up, `firmware/sweep.log`). Wheel commands
+  below 0.10 are raised to 0.10 so every wheel breaks away. The encoders are reported, not used
+  for control.
 
-1. **Full sensor chain with the guards on.** `OSCAR_HARDWARE_ENABLED=true` with
-   `start_oscar_hardware.sh` (LD19, bridge, `rear_odometry`, SLAM, Nav2, YOLO). Check `/scan` at
-   ~10 Hz, `/odom` moving when you push the robot, and TF `odom -> base_link`. Then drive by
-   teleop on `/cmd_vel` with the guards on. You'll need a machine with RViz on the same network
-   and the same `ROS_DOMAIN_ID` to see any of this.
-2. **Calibrate odometry** (needs only teleop and a tape measure):
-   - Drive 2 m straight and compare `/odom` x -> `wheel_diameter_m` / `counts_per_rev`.
-   - Spin in place 5 full turns and compare `/odom` yaw -> `track_width_m`. Then set firmware
-     `ROTATION_ARM_M = track_width_m / 2` so commanded turn rate matches real.
-   - Command 0.10 m/s for 10 s and measure the distance. If it's well off, tell Ethan:
-     `WHEEL_SPEED_FULL` (0.74 m/s) was measured with the wheels in the air.
-3. **Measure sensor transforms.** LiDAR and camera position/height/yaw relative to `base_link`.
-   Check LiDAR forward-zero: an object straight ahead should appear at angle 0 in RViz.
-4. **Map:** teleop around the room with SLAM running; save the map.
-5. **Nav2 goals** at low speed, with a spotter and a hand on the battery switches. Before this,
-   **match Nav2's limits to the robot**:
-   - In `nav2_rover.yaml` the MPPI controller has `vx_max 0.5`, `wz_max 1.9`, and the velocity
-     smoother has 0.5 m/s / 2.0 rad/s. The bridge and firmware cap at 0.15 m/s / 0.4 rad/s, and
-     the bridge clamps silently, so Nav2 would plan for a robot ~3x faster than it is.
-   - `prepare_nav2.py` sets 0.15 but with DWB parameter names, which MPPI doesn't read.
-   - The bridge disarms whenever `/cmd_vel` goes quiet (between goals), so expect to re-arm per goal.
-6. **Outlet detection -> approach goal.** Camera frame + YOLO on the Pi, then the approach node
-   with `enable_navigation_goals` on.
+## Verified / not verified
 
-Raising the 0.15 / 0.4 limits later means changing the firmware `MAX_*`, the bridge
-`max_linear_x` / `max_angular_z` and Nav2 together.
+**Verified (2026-11-23):** flashing and the console from the Pi 5; all four wheels in both
+programs; keyboard arming, timeout, stop; every `bridge_check.sh` step; forward and turn on the
+floor; encoder signs count up for forward (so `rear_odometry`'s `encoder_sign_rl/rr = 1` is right).
+
+**Not verified:** strafe (deliberately skipped; the bridge forces vy = 0 anyway); the bridge with
+the scan/odom guards on (LiDAR and `rear_odometry` running); any calibration.
+
+## Things to know
+
+- **Camera has no physical mount yet.** Ethan is working on a 3D-printed one. Camera-to-LiDAR
+  transforms can't be measured until it's mounted.
+- **Guesses to calibrate:** `ROTATION_ARM_M = 0.20` m in firmware and `track_width_m = 0.40` in
+  `rear_odometry`. Spin in place a few turns and compare `/odom` yaw to get the real value; the
+  firmware value is half of it. `0.74 m/s` full speed was measured wheels-up.
+- **Nav2 limits don't match the robot.** `nav2_rover.yaml` lets MPPI command 0.5 m/s and 1.9 rad/s
+  (the velocity smoother allows 0.5 / 2.0). The bridge silently caps at 0.15 / 0.4. Set Nav2 to
+  match before Nav2 drives. (`prepare_nav2.py` sets 0.15 with DWB parameter names, which MPPI
+  ignores.) Raising the caps means changing the firmware `MAX_*`, the bridge and Nav2 together.
+- **Pi 5 serial:** the Pico is `/dev/ttyAMA0`. `/dev/serial0` is the debug connector. The kit's
+  `serial_bridge.py` default, `README_FIRST.md` and `create_uart_container.sh` use `serial0`;
+  pass `port:=/dev/ttyAMA0` (`start_oscar_hardware.sh` already does).
+- **Old pin map:** the Nov 20 kit's `README_FIRST.md` / `oscar_autonomous.c` have the old,
+  mirrored left/right motor map. `oscar_hw.h` here is current.
+- `oscar.service` on the Pi is disabled. The `oscar-ros-lidar` container may need
+  `sudo docker start` after a reboot.
