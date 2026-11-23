@@ -27,11 +27,19 @@ been driven by your bridge or by ROS yet**; that's the next step and it's yours.
 - Pi 5 UART to the Pico on `/dev/ttyAMA0`: console works.
 - `test_motor_single` (bench tool): all four wheels drive.
 - `oscar_autonomous`, motors-off build: banner, keys, arming and the 2 s key timeout (stage 1).
-- `oscar_autonomous`, motors-on build: FL, FR, RL drove from the keyboard. **RR did not turn** in that run.
-  It then ran fine under `test_motor_single`. Cause unknown: there's no RR-specific code, and the
-  recorded RR breakaway (slow decay, <= 0.05 cmd) is below what one keypress sends (0.068).
-  Retest `oscar_autonomous` before assuming a firmware bug. If it repeats, compare RR at the same
-  command in both tools.
+- `oscar_autonomous`, motors-on build: three wheels drove from the keyboard, **the rear-right wheel
+  did not turn**. It then ran under `test_motor_single`.
+- **Rear labels don't match the wheels:** firmware motor `RL` (GP3/GP2) drives the *physical
+  rear-right* wheel. Not yet checked: whether `FL`/`FR` are also mirrored (a left/right viewpoint
+  mix-up) or only the rear pair is swapped in `oscar_hw.h`, and whether the encoders are swapped too.
+  Until that's fixed, mixing turn/strafe and `/odom` left/right are wrong. Check: key `1` should
+  turn the front-left wheel (left as seen from behind the robot). Press `e` while turning the
+  physical rear-left wheel by hand; the `RL` count should change.
+- **Rear-right breakaway is high:** it starts at cmd 0.40 in fast decay (bench tool). Slow-decay
+  breakaway for this wheel wasn't recorded. (`README.md`'s <= 0.05 was a different, pre-rewire
+  measurement.) `oscar_autonomous` uses slow decay and sends at most 0.20 at its 0.15 m/s cap.
+  If this wheel needs more than that, it can't start, which would explain the run above. Likely
+  fix: measure slow-decay breakaway per wheel and add a minimum-duty offset.
 
 **Verified off hardware only (laptop, Pico calls stubbed)**
 - Protocol and safety: ARM/VEL/STOP/DISARM/PING replies, 250 ms VEL timeout, rejection of
